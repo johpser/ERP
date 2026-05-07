@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial Requerimientos - QATA ASOCIADOS</title>
+    <link rel="icon" type="image/png" href="../imagenes/icono.png">
+    
+    <script type="module">
+        import { auth } from '../js/config.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        onAuthStateChanged(auth, (user) => {
+            if (!user) window.location.href = '../index.html';
+        });
+    </script>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f7f6; padding-top: 80px; font-family: 'Segoe UI', sans-serif; }
+        .nav-blue { background-color: #202224; min-height: 60px; }
+        .container-historial { max-width: 1550px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 .5rem 1rem rgba(0,0,0,.05); }
+        .filter-section { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; padding: 15px; margin-bottom: 20px; }
+        .form-label-sm { font-size: 0.75rem; font-weight: bold; color: #555; text-transform: uppercase; display: block; margin-bottom: 5px; }
+        .text-white-50 { color: #f8f9fa !important; }
+        .table { font-size: 0.85rem; vertical-align: middle; }
+        .nav-link { color: #ffffff !important; font-weight: bold; border: 1px solid #5a5a5a; border-radius: 5px; margin-left: 10px; font-size: 0.85rem;}
+        .nav-link:hover { background: #fffdfd; color: #121213 !important; }
+        .nav-link.active { background: #007bff; border-color: #007bff; }
+    </style>
+</head>
+<body>
+<header>
+    <nav class="navbar navbar-expand-lg navbar-dark nav-blue fixed-top shadow">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="requerimiento.html">
+                <img src="../imagenes/logo.png" alt="Logo" width="120" height="40" class="me-2">
+            </a>
+            <div class="collapse navbar-collapse justify-content-end">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link" href="requerimiento.html">GENERAR RQ</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="historial_reque.html">REQUERIMIENTOS</a></li>
+                    <li class="nav-item"><a class="nav-link" href="orden.html">GENERAR OC</a></li>
+                    <li class="nav-item"><a class="nav-link" href="historial.html">HISTORIAL OC</a></li>
+                    <li class="nav-item"><a class="nav-link" href="guia.html">GENERAR GUIA</a></li>
+                    <li class="nav-item"><a class="nav-link" href="historial2.html">HISTORIAL GUIAS</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link btn-logout px-3 border-danger text-danger" href="../index.html" id="btnCerrarSesion">
+                            <i class="bi bi-box-arrow-right"></i> SALIR
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+</header>
+
+<main class="container-fluid px-md-5">
+    <div class="container-historial">
+        <h3 class="fw-bold text-primary mb-4"><i class="bi bi-card-checklist"></i> Historial de Requerimientos</h3>
+        
+        <div class="filter-section shadow-sm">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label-sm">Búsqueda General</label>
+                    <input type="text" id="busqueda" class="form-control form-control-sm" placeholder="Solicitante o Fecha...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label-sm">Proyecto</label>
+                    <select id="filtroProyecto" class="form-select form-select-sm">
+                        <option value="">TODOS</option>
+                        <option value="TORRE PRIMA">TORRE PRIMA</option>
+                        <option value="GRID 154">GRID 154</option>
+                        <option value="WYNK">WYNK</option>
+                        <option value="PISO 19A">PISO 19A</option>
+                        <option value="PISO 19B">PISO 19B</option>
+                        <option value="POSVENTA">POSVENTA</option>
+                        <option value="QUALITY">QUALITY</option>
+                        <option value="CORIL">CORIL</option>
+                        <option value="ADMIN">ADMIN</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label-sm">Estado</label>
+                    <select id="filtroEstado" class="form-select form-select-sm">
+                        <option value="">TODOS</option>
+                        <option value="PENDIENTE">PENDIENTE</option>
+                        <option value="EN PROCESO">EN PROCESO</option>
+                        <option value="COMPLETADO">COMPLETADO</option>
+                        <option value="ANULADO">ANULADO</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button id="btnLimpiarFiltros" class="btn btn-outline-secondary btn-sm w-100">LIMPIAR</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover border text-center">
+                <thead class="table-light">
+                    <tr>
+                        <th>F. SOLICITUD</th>
+                        <th>F. REQUERIDA</th>
+                        <th>PROYECTO</th>
+                        <th>SOLICITANTE</th>
+                        <th>ESTADO</th>
+                        <th>ACCIÓN</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaHistorialReque"></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade" id="modalDetalle" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <div>
+                    <h5 class="modal-title fw-bold m-0">Detalle del Requerimiento</h5>
+                    <small id="modalSubtitulo" class="text-white-50 fw-bold"></small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm table-bordered align-middle">
+                    <thead class="table-dark small text-center">
+                        <tr>
+                            <th>PARTIDA</th>
+                            <th>CÓDIGO</th>
+                            <th>DESCRIPCIÓN</th>
+                            <th>UND.</th>
+                            <th>CANT.</th>
+                            <th>N° OC</th>
+                            <th>ESTADO ITEM</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoDetalleModal"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module" src="../js/historial_reque.js"></script>
+</body>
+</html>

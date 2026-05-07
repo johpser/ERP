@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generar Requerimiento - QATA ASOCIADOS</title>
+    <link rel="icon" type="image/png" href="../imagenes/icono.png">
+    
+    <script type="module">
+        import { auth } from '../js/config.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        onAuthStateChanged(auth, (user) => {
+            if (!user) window.location.href = '../index.html';
+        });
+    </script>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f7f6; padding-top: 80px; font-family: 'Segoe UI', sans-serif; }
+        .nav-blue { background-color: #202224; min-height: 60px; }
+        .card-req { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.05); }
+        .form-label { font-size: 0.8rem; font-weight: bold; color: #555; text-transform: uppercase; }
+        .nav-link { color: #ffffff !important; font-weight: bold; border: 1px solid #5a5a5a; border-radius: 5px; margin-left: 10px; font-size: 0.85rem;}
+        .nav-link:hover { background: #fffdfd; color: #121213 !important; }
+        .nav-link.active { background: #007bff; border-color: #007bff; }
+        /* Efecto visual para edición */
+        .fila-editando { background-color: #fff9c4 !important; transition: background-color 0.5s; }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark nav-blue fixed-top shadow">
+            <div class="container-fluid">
+                <a class="navbar-brand fw-bold d-flex align-items-center" href="requerimiento.html">
+                    <img src="../imagenes/logo.png" alt="Logo" width="120" height="40" class="me-2">
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item"><a class="nav-link active" href="requerimiento.html">GENERAR RQ</a></li>
+                        <li class="nav-item"><a class="nav-link" href="historial_reque.html">REQUERIMIENTOS</a></li>
+                        <li class="nav-item"><a class="nav-link" href="orden.html">GENERAR OC</a></li>
+                        <li class="nav-item"><a class="nav-link" href="historial.html">HISTORIAL OC</a></li>
+                        <li class="nav-item"><a class="nav-link" href="guia.html">GENERAR GUIA</a></li>
+                        <li class="nav-item"><a class="nav-link" href="historial2.html">HISTORIAL GUIAS</a></li>
+                        <li class="nav-item">
+                            <a class="nav-link btn-logout px-3 border-danger text-danger" href="../index.html" id="btnCerrarSesion">
+                                <i class="bi bi-box-arrow-right"></i> SALIR
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="card-req">
+            <h4 class="fw-bold text-primary mb-4"><i class="bi bi-file-earmark-plus"></i> Generar Requerimiento</h4>
+            
+            <div class="row g-3 mb-4 border-bottom pb-4">
+                <div class="col-md-3">
+                    <label class="form-label">Proyecto</label>
+                    <select id="reqProyecto" class="form-select form-select-sm">
+                        <option value="TORRE PRIMA">TORRE PRIMA</option>
+                        <option value="GRID 154">GRID 154</option>
+                        <option value="WYNK">WYNK</option>
+                        <option value="PISO 19A">PISO 19A</option>
+                        <option value="PISO 19B">PISO 19B</option>
+                        <option value="POSVENTA">POSVENTA</option>
+                        <option value="QUALITY">QUALITY</option>
+                        <option value="CORIL">CORIL</option>
+                        <option value="ADMIN">ADMIN</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Solicitado Por</label>
+                    <input type="text" id="reqSolicitante" class="form-control form-control-sm" placeholder="Nombre completo">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Solicitada</label>
+                    <input type="date" id="reqFechaSolicitada" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Requerida</label>
+                    <input type="date" id="reqFechaRequerida" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label">Centro de Costo</label>
+                    <select id="reqCentroCosto" class="form-select form-select-sm">
+                        <option value="">SELECCIONAR...</option>
+                        <option value="M-074_QP-PURUCHUCO">M-074_QP-PURUCHUCO</option>
+                        <option value="M-075_WYNK-LA RAMBLA">M-075_WYNK-LA RAMBLA</option>
+                        <option value="M-067_GRID-EDIF-SM">M-067_GRID-EDIF-SM</option>
+                        <option value="M-066_PRIMA-OFIC-Chinchon">M-066_PRIMA-OFIC-Chinchon</option>
+                        <option value="M-066_PRIMA-2DO PQTE_AD001">M-066_PRIMA-2DO PQTE_AD001</option>
+                        <option value="M-063_OFIC-CAMINO REAL">M-063_OFIC-CAMINO REAL</option>
+                        <option value="M-066_PRIMA-OF-Chinchon_AD043">M-066_PRIMA-OF-Chinchon_AD043</option>
+                        <option value="M-066_PRIMA-COMP-2DO PQTE">M-066_PRIMA-COMP-2DO PQTE</option>
+                        <option value="M-068_CORIL-OFIC-DERBY P19A_AD1">M-068_CORIL-OFIC-DERBY P19A_AD1</option>
+                        <option value="M-068_CORIL-OFIC-DERBY P19B">M-068_CORIL-OFIC-DERBY P19B</option>
+                        <option value="ADMIN">ADMIN</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle">
+                    <thead class="table-dark small text-center">
+                        <tr>
+                            <th style="width: 80px;">PARTIDA</th>
+                            <th style="width: 120px;">CÓDIGO</th>
+                            <th>DESCRIPCIÓN</th>
+                            <th style="width: 250px;">OBSERVACIÓN / LINK WEB</th>
+                            <th style="width: 70px;">UND</th>
+                            <th style="width: 80px;">CANT.</th>
+                            <th style="width: 90px;">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTablaReq">
+                        <tr>
+                            <td><input type="text" class="form-control form-control-sm inp-partida" placeholder="N°"></td>
+                            <td><input type="text" class="form-control form-control-sm inp-codigo" placeholder="Código"></td>
+                            <td><input type="text" class="form-control form-control-sm inp-desc" list="listaProductos" placeholder="Producto"></td>
+                            <td><input type="text" class="form-control form-control-sm inp-observacion" placeholder="Link o nota adicional"></td>
+                            <td><input type="text" class="form-control form-control-sm inp-und"></td>
+                            <td><input type="number" class="form-control form-control-sm inp-cant" value="1"></td>
+                            <td class="text-center">
+                                <div class="btn-group">
+                                    <button class="btn btn-sm text-primary btn-editar" title="Editar fila"><i class="bi bi-pencil-square"></i></button>
+                                    <button class="btn btn-sm text-danger btn-eliminar" title="Eliminar fila"><i class="bi bi-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <datalist id="listaProductos"></datalist>
+            
+            <div class="d-flex justify-content-between mt-3">
+                <button id="btnAgregarFila" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-circle"></i> Agregar Item</button>
+                <button id="btnGuardarReq" class="btn btn-primary shadow px-4 fw-bold">GENERAR REQUERIMIENTO</button>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="../js/requerimiento.js"></script>
+    <script type="module" src="../js/seguridad.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
