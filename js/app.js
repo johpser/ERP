@@ -158,6 +158,9 @@ async function guardarOrden() {
     const simb = document.getElementById('moneda').value;
     if (!simb) return alert("Por favor, seleccione un tipo de moneda.");
     
+    const rucProv = document.getElementById('rucProv').value.trim();
+    if (!rucProv) return alert("Por favor, ingrese el RUC del proveedor.");
+
     const btn = document.getElementById('btnFinalizar');
     btn.disabled = true;
     btn.innerText = "⌛ REGISTRANDO...";
@@ -178,11 +181,14 @@ async function guardarOrden() {
             fechaEmision: document.getElementById('fechaoc').value,
             fechaVencimiento: document.getElementById('fechaVencimiento').value,
             proveedor: {
-                ruc: document.getElementById('rucProv').value,
+                ruc: rucProv,
                 razonSocial: document.getElementById('razonProv').value.toUpperCase(),
                 direccion: document.getElementById('dirProv').value.toUpperCase(),
                 atencion: document.getElementById('atencionProv').value.toUpperCase(),
-                pago: document.getElementById('pagoProv').value
+                pago: document.getElementById('pagoProv').value,
+                tlf: document.getElementById('tlfProv').value,
+                correo: document.getElementById('corProv').value,
+                diasCredito: document.getElementById('diasCredito').value
             },
             comprador: {
                 nombre: document.getElementById('nombreComp').value.toUpperCase(),
@@ -198,9 +204,23 @@ async function guardarOrden() {
             estadoPago: "PENDIENTE"
         };
 
+        // 1. Guardar la Orden y la Guía
         await addDoc(collection(db, "ordenesCompra"), data);
         await addDoc(collection(db, "guiasRemision"), data);
 
+        // 2. REGISTRAR / ACTUALIZAR PROVEEDOR (Añadido)
+        await setDoc(doc(db, "proveedores", rucProv), {
+            ruc: rucProv,
+            razonSocial: data.proveedor.razonSocial,
+            direccion: data.proveedor.direccion,
+            atencion: data.proveedor.atencion,
+            tlf: data.proveedor.tlf,
+            correo: data.proveedor.correo,
+            pago: data.proveedor.pago,
+            diasCredito: data.proveedor.diasCredito
+        }, { merge: true });
+
+        // 3. Registrar / Actualizar productos
         for (const item of productosTabla) {
             if (item.codigo && item.codigo !== "S/C") {
                 await setDoc(doc(db, "productos", item.codigo), {
@@ -211,7 +231,7 @@ async function guardarOrden() {
             }
         }
         
-        alert(`✅ Registrado con éxito.\nOrden: ${data.nroOC}`);
+        alert(`✅ Registrado con éxito.\nOrden: ${data.nroOC}\nProveedor y productos actualizados.`);
         location.reload();
 
     } catch (e) {
