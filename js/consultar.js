@@ -1,11 +1,29 @@
-import { db } from './config.js';
+import { db, auth } from './config.js';
 import { 
     collection, onSnapshot, query, orderBy, doc, updateDoc, getDoc 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const tablaHistorial = document.getElementById('tablaHistorial');
 
-// --- 1. ESCUCHA EN TIEMPO REAL ---
+// --- 1. SEGURIDAD Y VALIDACIÓN DE ROL ---
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        try {
+            const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+            if (userDoc.exists()) {
+                const rol = userDoc.data().rol.toLowerCase();
+                console.log("Acceso verificado para historial:", rol);
+            }
+        } catch (error) {
+            console.error("Error validando permisos:", error);
+        }
+    } else {
+        window.location.href = '../index.html';
+    }
+});
+
+// --- 2. ESCUCHA EN TIEMPO REAL ---
 function iniciarEscuchaHistorial() {
     const q = query(collection(db, "ordenesCompra"), orderBy("createdAt", "desc"));
     onSnapshot(q, (snapshot) => {
@@ -16,8 +34,9 @@ function iniciarEscuchaHistorial() {
     });
 }
 
-// --- 2. RENDERIZADO DE LA TABLA ---
+// --- 3. RENDERIZADO DE LA TABLA ---
 function renderizarTabla(snapshot) {
+    if (!tablaHistorial) return;
     tablaHistorial.innerHTML = "";
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
@@ -27,9 +46,7 @@ function renderizarTabla(snapshot) {
         const estadoSolped = d.estadoSolped || 'PENDIENTE';
         const estadoPago = d.estadoPago || 'PENDIENTE';
         const formaPago = d.proveedor?.pago || '---';
-        
-        // Verificamos si existe la factura en formato Base64 (texto)
-        const tieneFacturaAdjunta = d.facturaPdfBase64 ? true : false;
+        const tieneFacturaAdjunta = !!d.facturaPdfBase64;
         
         const colorSolped = estadoSolped === 'ENVIADA' ? 'btn-success' : (estadoSolped === 'ANULADA' ? 'btn-danger' : 'btn-warning');
         const colorPago = estadoPago === 'PAGO REALIZADO' ? 'btn-primary' : 'btn-secondary';
@@ -83,7 +100,7 @@ function renderizarTabla(snapshot) {
     });
 }
 
-// --- 3. LÓGICA PARA ADJUNTAR / VER FACTURA (SIN STORAGE) ---
+// --- 4. LÓGICA PARA ADJUNTAR / VER FACTURA ---
 tablaHistorial.addEventListener('click', async (e) => {
     const btnAdjuntar = e.target.closest('.btn-adjuntar-base64');
     if (!btnAdjuntar) return;
@@ -93,24 +110,18 @@ tablaHistorial.addEventListener('click', async (e) => {
     const docSnap = await getDoc(docRef);
     const data = docSnap.data();
 
-    // Si ya existe el PDF en la base de datos, lo abrimos
     if (data.facturaPdfBase64) {
         const win = window.open();
         win.document.write(`<iframe src="${data.facturaPdfBase64}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
     } else {
-        // Si no hay factura, abrimos el selector de archivos
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'application/pdf';
         input.onchange = async () => {
             const file = input.files[0];
             if (!file) return;
-
-            // Límite de 1MB para Firestore gratuito
             if (file.size > 1000000) return alert("El archivo es muy pesado. Máximo 1MB.");
-
             btnAdjuntar.innerHTML = `<span class="spinner-border spinner-border-sm text-primary"></span>`;
-            
             const reader = new FileReader();
             reader.onload = async (event) => {
                 const base64String = event.target.result;
@@ -129,7 +140,7 @@ tablaHistorial.addEventListener('click', async (e) => {
     }
 });
 
-// --- 4. GENERACIÓN DE PDF (DISEÑO ORIGINAL) ---
+// --- 5. GENERACIÓN DE PDF (DISEÑO ORIGINAL CON MEJORAS DE TEXTO) ---
 async function generarPDF_Historial(data, modo) {
     const simb = data.moneda || "S/";
     const element = document.createElement('div');
@@ -189,12 +200,12 @@ async function generarPDF_Historial(data, modo) {
                 <tbody>
                     ${data.items.map(i => `
                         <tr>
-                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center; white-space: nowrap;">${i.codigo}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px; word-break: break-word;">${i.desc}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center; white-space: nowrap;">${i.unidad}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center; font-weight: bold; white-space: nowrap;">${i.cant}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px; text-align: right; white-space: nowrap;">${simb} ${parseFloat(i.precio).toFixed(2)}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold; white-space: nowrap;">${simb} ${parseFloat(i.total).toFixed(2)}</td>
+                            <td style="border: 1px solid #ddd; padding: 12px 8px; text-align: center; font-size: 8px; word-break: break-all; line-height: 1.5; vertical-align: middle;">${i.codigo}</td>
+                            <td style="border: 1px solid #ddd; padding: 12px 8px; word-wrap: break-word; line-height: 1.5; vertical-align: middle;">${i.desc}</td>
+                            <td style="border: 1px solid #ddd; padding: 12px 8px; text-align: center; vertical-align: middle;">${i.unidad}</td>
+                            <td style="border: 1px solid #ddd; padding: 12px 8px; text-align: center; font-weight: bold; vertical-align: middle;">${i.cant}</td>
+                            <td style="border: 1px solid #ddd; padding: 12px 8px; text-align: right; vertical-align: middle;">${simb} ${parseFloat(i.precio).toFixed(2)}</td>
+                            <td style="border: 1px solid #ddd; padding: 12px 8px; text-align: right; font-weight: bold; vertical-align: middle;">${simb} ${parseFloat(i.total).toFixed(2)}</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -209,11 +220,11 @@ async function generarPDF_Historial(data, modo) {
             <div style="margin-top: 10px; display: flex; gap: 15px; page-break-inside: avoid;">
                 <div style="flex: 1; border: 1px solid #333; border-radius: 12px; padding: 15px; font-size: 11px; text-align: center;">
                     <div style="border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase;">DOCUMENTACIÓN OBLIGATORIA</div>
-                    <div style="text-align: justify;">Se solicita adjuntar todos los documentos técnicos y de respaldo correspondientes a los productos cotizados, según aplique, tales como: certificados de calidad, garantías del fabricante o distribuidor. Estos documentos son requisitos obligatorios para la validación y recepción conforme de los materiales.</div>
+                    <div style="text-align: justify; line-height: 1.4;">Se solicita adjuntar todos los documentos técnicos y de respaldo correspondientes a los productos cotizados, según aplique, tales como: certificados de calidad, garantías del fabricante o distribuidor. Estos documentos son requisitos obligatorios para la validación y recepción conforme de los materiales.</div>
                 </div>
                 <div style="flex: 1; border: 1px solid #333; border-radius: 12px; padding: 15px; font-size: 10.5px; text-align: center;">
                     <div style="border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase;">TÉRMINOS Y CONDICIONES</div>
-                    <div style="text-align: left;">1. La recepción de esta orden constituye aceptación de condiciones.<br>
+                    <div style="text-align: left; line-height: 1.3;">1. La recepción de esta orden constituye aceptación de condiciones.<br>
                         2. Anotar número de OC en guía y factura.<br>
                         3. La compañía se reserva el derecho de devolución parcial o total.<br>
                         4. El proveedor es responsable hasta la recepción satisfactoria.<br>
@@ -225,8 +236,10 @@ async function generarPDF_Historial(data, modo) {
                         10. Adjuntar detalle y cuenta de detracciones si aplica.</div>
                 </div>
             </div>
-            <div style="margin-top: 25px; text-align: center; width: 100%; page-break-inside: avoid;">
-                <img src="../imagenes/sello.png" style="width: 120px; height: auto;">
+          <div style="text-align: center; width: 100%; page-break-inside: avoid;">
+
+                <img src="../imagenes/sello.png" style="width: 70px; height: auto;">
+
             </div>
         </div>
     `;
@@ -247,22 +260,10 @@ async function generarPDF_Historial(data, modo) {
     }
 }
 
-// Filtros y Eventos
-tablaHistorial.addEventListener('blur', async (e) => {
-    if (e.target.tagName === 'INPUT') {
-        const { id, campo } = e.target.dataset;
-        const valor = e.target.value.toUpperCase();
-        if (valor !== "") {
-            try { await updateDoc(doc(db, "ordenesCompra", id), { [campo]: valor }); }
-            catch (err) { console.error("Error:", err); }
-        }
-    }
-}, true);
-
+// --- EVENTOS Y FILTROS ---
 tablaHistorial.addEventListener('click', async (e) => {
     const target = e.target.closest('button');
     if (!target) return;
-    
     if (target.classList.contains('btn-adjuntar-base64')) return;
 
     const { id, campo, valor, accion } = target.dataset;
@@ -309,14 +310,6 @@ document.getElementById('busqueda').addEventListener('input', aplicarFiltros);
 document.getElementById('filtroProyecto').addEventListener('change', aplicarFiltros);
 document.getElementById('filtroSolped').addEventListener('change', aplicarFiltros);
 document.getElementById('filtroPago').addEventListener('change', aplicarFiltros);
-
-document.getElementById('btnLimpiarFiltros').onclick = function() {
-    document.getElementById('busqueda').value = "";
-    document.getElementById('filtroProyecto').value = "";
-    document.getElementById('filtroSolped').value = "";
-    document.getElementById('filtroPago').value = "";
-    aplicarFiltros();
-};
 
 document.getElementById('btnExportarExcel').onclick = function() {
     const filas = tablaHistorial.querySelectorAll('tr');

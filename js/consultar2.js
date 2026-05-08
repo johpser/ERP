@@ -1,12 +1,30 @@
-import { db } from './config.js';
+import { db, auth } from './config.js';
 import { 
     collection, onSnapshot, query, orderBy, doc, getDoc, updateDoc 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const tablaHistorial = document.getElementById('tablaHistorialGuias');
 const inputBusqueda = document.getElementById('busqueda');
 
-// --- 1. ESCUCHA EN TIEMPO REAL ---
+// --- 1. SEGURIDAD Y CONTROL DE ACCESO ---
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        try {
+            const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+            if (userDoc.exists()) {
+                const rol = userDoc.data().rol.toLowerCase();
+                console.log("Acceso verificado para:", rol);
+            }
+        } catch (error) {
+            console.error("Error validando sesión:", error);
+        }
+    } else {
+        window.location.href = '../index.html';
+    }
+});
+
+// --- 2. ESCUCHA EN TIEMPO REAL ---
 function iniciarEscuchaHistorial() {
     const q = query(collection(db, "guiasRemision"), orderBy("createdAt", "desc"));
     
@@ -17,7 +35,7 @@ function iniciarEscuchaHistorial() {
     });
 }
 
-// --- 2. RENDERIZADO DE TABLA ---
+// --- 3. RENDERIZADO DE TABLA EN PANTALLA ---
 function renderizarTabla(snapshot) {
     if (!tablaHistorial) return;
     tablaHistorial.innerHTML = "";
@@ -55,19 +73,19 @@ function renderizarTabla(snapshot) {
     });
 }
 
-// --- LÓGICA ANULAR GUÍA ---
+// --- 4. LÓGICA ANULAR GUÍA ---
 document.addEventListener('click', async (e) => {
     const btn = e.target.closest('.btn-anular');
     if (!btn) return;
 
     const id = btn.dataset.id;
 
-    if (confirm("¿Estás seguro de que deseas ANULAR esta Guía de Remisión? Esta acción no se puede deshacer.")) {
+    if (confirm("¿Estás seguro de que deseas ANULAR esta Guía de Remisión?")) {
         try {
             const docRef = doc(db, "guiasRemision", id);
             await updateDoc(docRef, {
                 nroGR: "ANULADA",
-                items: [] // Limpiamos ítems al anular
+                items: [] 
             });
             alert("✅ Guía anulada correctamente.");
         } catch (err) {
@@ -77,14 +95,14 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-// --- 3. PDF (TU DISEÑO ORIGINAL SIN CAMBIOS) ---
+// --- 5. GENERACIÓN DE PDF (Ajustado para que el código no deforme el cuadro) ---
 async function generarPDF_Guia_Historial(data, modo) {
     const element = document.createElement('div');
     element.innerHTML = `
         <div style="padding: 10mm; font-family: 'Segoe UI', Arial, sans-serif; color: #333; background: #fff;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <div style="width: 25%;">
-                    <img src="../imagenes/LOGOQATA.png" style="width: 140px;" onerror="this.style.display='none'">
+                    <img src="../imagenes/LOGOQATA.png" style="width: 140px;">
                 </div>
                 <div style="width: 45%; text-align: center; font-size: 11px; line-height: 1.4;">
                     <h3 style="margin: 0; font-size: 16px;">QATA ASOCIADOS S.A.C.</h3>
@@ -97,6 +115,7 @@ async function generarPDF_Guia_Historial(data, modo) {
                     <h3 style="margin: 0; color: #dc3545; font-size: 18px;">${data.nroGR}</h3>
                 </div>
             </div>
+
             <div style="border: 1px solid #ddd; border-radius: 6px; overflow: hidden; margin-bottom: 20px;">
                 <div style="background: #007bff; color: white; padding: 6px 10px; font-weight: bold; font-size: 12px;">INFORMACIÓN DEL TRASLADO</div>
                 <div style="padding: 12px; font-size: 11px; display: flex; justify-content: space-between; gap: 20px; line-height: 1.6;">
@@ -105,19 +124,20 @@ async function generarPDF_Guia_Historial(data, modo) {
                     <div style="flex: 1;"><b style="color:#007bff;">PUNTO LLEGADA:</b><br>${(data.comprador?.lugarEntrega || '---').toUpperCase()}</div>
                 </div>
             </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed;">
                 <thead>
                     <tr style="background: #212529; color: white;">
                         <th style="padding: 10px; border: 1px solid #333; width: 15%;">Cód.</th>
-                        <th style="padding: 10px; border: 1px solid #333; text-align: left;">Descripción</th>
-                        <th style="padding: 10px; border: 1px solid #333; width: 10%;">Und.</th>
-                        <th style="padding: 10px; border: 1px solid #333; width: 10%;">Cant.</th>
+                        <th style="padding: 10px; border: 1px solid #333; text-align: left; width: 55%;">Descripción</th>
+                        <th style="padding: 10px; border: 1px solid #333; width: 15%;">Und.</th>
+                        <th style="padding: 10px; border: 1px solid #333; width: 15%;">Cant.</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${data.items.map(i => `
                         <tr>
-                            <td style="border:1px solid #ddd; padding:8px; text-align:center;">${i.codigo}</td>
+                            <td style="border:1px solid #ddd; padding:8px; text-align:center; font-size: 9px; word-break: break-all;">${i.codigo}</td>
                             <td style="border:1px solid #ddd; padding:8px;">${i.desc || i.descripcion}</td>
                             <td style="border:1px solid #ddd; padding:8px; text-align:center;">${i.unidad}</td>
                             <td style="border:1px solid #ddd; padding:8px; text-align:center; font-weight:bold;">${i.cant || i.cantidad}</td>
@@ -125,6 +145,7 @@ async function generarPDF_Guia_Historial(data, modo) {
                     `).join('')}
                 </tbody>
             </table>
+
             <div style="margin-top: 10px; display: flex; gap: 15px; page-break-inside: avoid;">
                 <div style="flex: 1; border: 1px solid #333; border-radius: 12px; padding: 15px; font-size: 11px; text-align: center;">
                     <div style="text-align: justify; line-height: 1.4;">Para constancia de que se recibe los productos/servicios antes mencionados a entera satisfacción firma el receptor.</div>
@@ -153,7 +174,7 @@ async function generarPDF_Guia_Historial(data, modo) {
     }
 }
 
-// --- EVENTOS PDF BOTONES ---
+// --- 6. EVENTOS DE BOTONES PDF ---
 document.addEventListener('click', async (e) => {
     const btn = e.target.closest('.btn-pdf');
     if (!btn) return;
@@ -169,7 +190,7 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-// --- BUSCADOR ---
+// --- 7. BUSCADOR ---
 if (inputBusqueda) {
     inputBusqueda.oninput = function() {
         const term = this.value.toLowerCase();
@@ -178,7 +199,7 @@ if (inputBusqueda) {
     };
 }
 
-// --- EXCEL ---
+// --- 8. EXCEL ---
 const btnExcel = document.getElementById('btnExportarExcel');
 if (btnExcel) {
     btnExcel.onclick = function() {
@@ -203,12 +224,7 @@ if (btnExcel) {
     };
 }
 
-iniciarEscuchaHistorial();
-
-// --- LOGOUT ---
-import { auth } from './config.js';
-import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
+// --- 9. LOGOUT ---
 document.getElementById('btnCerrarSesion')?.addEventListener('click', async (e) => {
     e.preventDefault();
     try {
@@ -218,3 +234,5 @@ document.getElementById('btnCerrarSesion')?.addEventListener('click', async (e) 
         console.error("Error al cerrar sesión:", error);
     }
 });
+
+iniciarEscuchaHistorial();

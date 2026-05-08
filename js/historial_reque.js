@@ -1,13 +1,32 @@
-import { db } from './config.js';
+import { db, auth } from './config.js';
 import { 
     collection, onSnapshot, query, orderBy, doc, updateDoc, getDoc 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const tablaReq = document.getElementById('tablaHistorialReque');
 const cuerpoModal = document.getElementById('cuerpoDetalleModal');
 const modalSubtitulo = document.getElementById('modalSubtitulo');
 
 let modalInstancia = null;
+let idActual = "";
+
+// --- 1. SEGURIDAD Y VALIDACIÓN DE ROL ---
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        try {
+            const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+            if (userDoc.exists()) {
+                const rol = userDoc.data().rol.toLowerCase();
+                console.log("Acceso verificado para historial RQ:", rol);
+            }
+        } catch (error) {
+            console.error("Error validando permisos:", error);
+        }
+    } else {
+        window.location.href = '../index.html';
+    }
+});
 
 function obtenerModal() {
     if (!modalInstancia) {
@@ -17,9 +36,7 @@ function obtenerModal() {
     return modalInstancia;
 }
 
-let idActual = "";
-
-// --- 1. ESCUCHA EN TIEMPO REAL ---
+// --- 2. ESCUCHA EN TIEMPO REAL ---
 function iniciarEscuchaRequerimientos() {
     const q = query(collection(db, "requerimientos"), orderBy("createdAt", "desc"));
     onSnapshot(q, (snapshot) => {
@@ -29,8 +46,9 @@ function iniciarEscuchaRequerimientos() {
     });
 }
 
-// --- 2. RENDERIZADO DE TABLA PRINCIPAL ---
+// --- 3. RENDERIZADO DE TABLA PRINCIPAL ---
 function renderizarTablaPrincipal(snapshot) {
+    if (!tablaReq) return;
     tablaReq.innerHTML = "";
     if (snapshot.empty) {
         tablaReq.innerHTML = "<tr><td colspan='6' class='text-center'>No hay requerimientos registrados</td></tr>";
@@ -72,7 +90,7 @@ function renderizarTablaPrincipal(snapshot) {
     aplicarFiltros();
 }
 
-// --- 3. EVENTOS DE CLIC (VER Y ANULAR) ---
+// --- 4. EVENTOS DE CLIC (VER Y ANULAR) ---
 document.addEventListener('click', async (e) => {
     const btnVer = e.target.closest('.btn-ver');
     if (btnVer) {
@@ -107,8 +125,9 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-// --- 4. RENDERIZADO DEL MODAL (CON OBSERVACIÓN/LINK) ---
+// --- 5. RENDERIZADO DEL MODAL ---
 function renderModal(items, estadoGeneral) {
+    if (!cuerpoModal) return;
     cuerpoModal.innerHTML = "";
     const esAnulado = estadoGeneral === "ANULADO";
 
@@ -117,7 +136,6 @@ function renderModal(items, estadoGeneral) {
         const disabledOC = (ocValue !== "" || esAnulado) ? "disabled" : "";
         const disabledSelect = esAnulado ? "disabled" : "";
 
-        // Lógica para procesar la observación o el Link Web
         let htmlObservacion = "";
         if (item.observacion && item.observacion.trim() !== "") {
             const obs = item.observacion.trim();
@@ -164,8 +182,8 @@ function renderModal(items, estadoGeneral) {
     });
 }
 
-// --- 5. ACTUALIZACIÓN DE ESTADOS DESDE EL MODAL ---
-cuerpoModal.addEventListener('change', async (e) => {
+// --- 6. ACTUALIZACIÓN DE ESTADOS DESDE EL MODAL ---
+cuerpoModal?.addEventListener('change', async (e) => {
     if (!idActual) return;
     const snap = await getDoc(doc(db, "requerimientos", idActual));
     if (snap.data().estadoGeneral === "ANULADO") return;
@@ -187,12 +205,12 @@ cuerpoModal.addEventListener('change', async (e) => {
     renderModal(items, nuevoEstadoGeneral); 
 });
 
-// --- 6. FILTROS ---
+// --- 7. FILTROS ---
 function aplicarFiltros() {
     const term = document.getElementById('busqueda').value.toLowerCase();
     const proyecto = document.getElementById('filtroProyecto').value.toUpperCase();
     const estado = document.getElementById('filtroEstado').value;
-    const filas = tablaReq.querySelectorAll('tr');
+    const filas = tablaReq?.querySelectorAll('tr') || [];
 
     filas.forEach(fila => {
         if (fila.cells.length < 5) return;
@@ -208,9 +226,9 @@ function aplicarFiltros() {
     });
 }
 
-document.getElementById('busqueda').addEventListener('input', aplicarFiltros);
-document.getElementById('filtroProyecto').addEventListener('change', aplicarFiltros);
-document.getElementById('filtroEstado').addEventListener('change', aplicarFiltros);
+document.getElementById('busqueda')?.addEventListener('input', aplicarFiltros);
+document.getElementById('filtroProyecto')?.addEventListener('change', aplicarFiltros);
+document.getElementById('filtroEstado')?.addEventListener('change', aplicarFiltros);
 document.getElementById('btnLimpiarFiltros').onclick = () => {
     document.getElementById('busqueda').value = "";
     document.getElementById('filtroProyecto').value = "";

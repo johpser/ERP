@@ -1,7 +1,8 @@
-import { db } from './config.js';
+import { db, auth } from './config.js';
 import { 
     doc, getDoc, addDoc, collection, runTransaction, serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // --- MAESTROS PARA GUÍAS INDEPENDIENTES ---
 const proyectosMaster = {
@@ -18,8 +19,17 @@ const proyectosMaster = {
 
 let itemsGuia = [];
 
+// --- 1. SEGURIDAD Y ESTADO DE SESIÓN ---
+onAuthStateChanged(auth, (user) => {
+    if (!user) {
+        window.location.href = '../index.html';
+    } else {
+        iniciarGuia();
+    }
+});
+
 const iniciarGuia = () => {
-    // 1. Llenado automático de dirección por proyecto
+    // A. Llenado automático de dirección por proyecto
     const selectProyecto = document.getElementById('proyectoComp');
     if (selectProyecto) {
         selectProyecto.addEventListener('change', (e) => {
@@ -28,7 +38,7 @@ const iniciarGuia = () => {
         });
     }
 
-    // 2. Buscar producto por código (Llenado automático desde Firestore)
+    // B. Buscar producto por código (Llenado automático desde Firestore)
     const inputCodigo = document.getElementById('codigoProd');
     if (inputCodigo) {
         inputCodigo.addEventListener('blur', async (e) => {
@@ -46,25 +56,31 @@ const iniciarGuia = () => {
         });
     }
 
-    // 3. Añadir productos a la tabla local
-    document.getElementById('btnAnadir').addEventListener('click', () => {
-        const codigo = document.getElementById('codigoProd').value.toUpperCase();
-        const desc = document.getElementById('producto').value.toUpperCase();
-        const cant = parseFloat(document.getElementById('cantidad').value);
-        const unidad = document.getElementById('unidadMedida').value;
+    // C. Añadir productos a la tabla local
+    const btnAnadir = document.getElementById('btnAnadir');
+    if (btnAnadir) {
+        btnAnadir.onclick = () => {
+            const codigo = document.getElementById('codigoProd').value.toUpperCase();
+            const desc = document.getElementById('producto').value.toUpperCase();
+            const cant = parseFloat(document.getElementById('cantidad').value);
+            const unidad = document.getElementById('unidadMedida').value;
 
-        if (!desc || isNaN(cant) || cant <= 0) return alert("Complete descripción y cantidad válida.");
+            if (!desc || isNaN(cant) || cant <= 0) return alert("Complete descripción y cantidad válida.");
 
-        itemsGuia.push({ codigo: codigo || "S/C", desc, cant, unidad });
-        renderTablaGuia();
-        
-        // Limpiar campos y devolver foco
-        ['codigoProd', 'producto', 'cantidad'].forEach(id => document.getElementById(id).value = '');
-        document.getElementById('codigoProd').focus();
-    });
+            itemsGuia.push({ codigo: codigo || "S/C", desc, cant, unidad });
+            renderTablaGuia();
+            
+            // Limpiar campos y devolver foco
+            ['codigoProd', 'producto', 'cantidad'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('codigoProd').focus();
+        };
+    }
 
-    // 4. Botón Finalizar (Guardar en Firebase y Descargar PDF)
-    document.getElementById('btnFinalizar').addEventListener('click', finalizarGuia);
+    // D. Botón Finalizar
+    const btnFinalizar = document.getElementById('btnFinalizar');
+    if (btnFinalizar) {
+        btnFinalizar.onclick = finalizarGuia;
+    }
 };
 
 // --- RENDERIZADO DE TABLA ---
@@ -74,14 +90,15 @@ function renderTablaGuia() {
     tbody.innerHTML = "";
 
     itemsGuia.forEach((item, index) => {
-        tbody.innerHTML += `
-            <tr>
-                <td>${item.codigo}</td>
-                <td class="text-start">${item.desc}</td>
-                <td>${item.unidad}</td>
-                <td class="fw-bold">${item.cant}</td>
-                <td><button class="btn btn-danger btn-sm" onclick="eliminarItemGuia(${index})">🗑️</button></td>
-            </tr>`;
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+            <td>${item.codigo}</td>
+            <td class="text-start">${item.desc}</td>
+            <td>${item.unidad}</td>
+            <td class="fw-bold">${item.cant}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="eliminarItemGuia(${index})"><i class="bi bi-trash"></i></button></td>
+        `;
+        tbody.appendChild(fila);
     });
 }
 
@@ -111,8 +128,8 @@ async function finalizarGuia() {
         // B. Estructura de datos para Firestore
         const dataGuia = {
             nroGR,
-            nroOC: "ALMACÉN", // Referencia para el historial
-            fechaTraslado: new Date().toLocaleDateString('es-PE'),
+            nroOC: "ALMACÉN", 
+            fechaEmision: new Date().toLocaleDateString('es-PE'),
             proveedor: {
                 razonSocial: "QATA ASOCIADOS S.A.C.",
                 ruc: "20605226362",
@@ -126,10 +143,10 @@ async function finalizarGuia() {
             createdAt: serverTimestamp()
         };
 
-        // C. Guardar en la colección unificada
+        // C. Guardar en la colección
         await addDoc(collection(db, "guiasRemision"), dataGuia);
         
-        // D. Generar PDF con el diseño Estilo OC
+        // D. Generar PDF
         await generarPDFGuia_Template(dataGuia);
 
         alert("✅ Guía " + nroGR + " generada y descargada.");
@@ -139,7 +156,7 @@ async function finalizarGuia() {
         console.error(e);
         alert("Error al procesar la guía.");
         btn.disabled = false;
-        btn.innerText = "💾 GUARDAR E IMPRIMIR GUÍA";
+        btn.innerHTML = `<i class="bi bi-cloud-arrow-up"></i> GUARDAR GUÍA EN SISTEMA`;
     }
 }
 
@@ -152,7 +169,7 @@ async function generarPDFGuia_Template(data) {
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <div style="width: 25%;">
-                    <img src="../imagenes/LOGOQATA.png" style="width: 140px;" onerror="this.style.display='none'">
+                    <img src="../imagenes/LOGOQATA.png" style="width: 140px;">
                 </div>
                 <div style="width: 45%; text-align: center; font-size: 11px; line-height: 1.4;">
                     <h3 style="margin: 0; color: #333; font-size: 16px;">QATA ASOCIADOS S.A.C.</h3>
@@ -176,7 +193,7 @@ async function generarPDFGuia_Template(data) {
                     </div>
                     <div style="flex: 1;">
                         <b style="color: #007bff;">PUNTO PARTIDA:</b><br>
-                        ${data.proveedor.direccion || 'Av. Camino Real 1236, San Isidro'}
+                        ${data.proveedor.direccion}
                     </div>
                     <div style="flex: 1;">
                         <b style="color: #007bff;">PUNTO LLEGADA:</b><br>
@@ -185,19 +202,19 @@ async function generarPDFGuia_Template(data) {
                 </div>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 30px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 30px; table-layout: fixed;">
                 <thead>
                     <tr style="background: #212529; color: white; text-align: center;">
-                        <th style="padding: 10px; border: 1px solid #333; width: 15%;">Cód.</th>
+                        <th style="padding: 10px; border: 1px solid #333; width: 100px;">Cód.</th>
                         <th style="padding: 10px; border: 1px solid #333; text-align: left;">Descripción</th>
-                        <th style="padding: 10px; border: 1px solid #333; width: 10%;">Und.</th>
-                        <th style="padding: 10px; border: 1px solid #333; width: 10%;">Cant.</th>
+                        <th style="padding: 10px; border: 1px solid #333; width: 60px;">Und.</th>
+                        <th style="padding: 10px; border: 1px solid #333; width: 60px;">Cant.</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${data.items.map(i => `
                         <tr>
-                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #666;">${i.codigo}</td>
+                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #333; font-size: 8px; word-break: break-all;">${i.codigo}</td>
                             <td style="border: 1px solid #ddd; padding: 8px;">${i.desc}</td>
                             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${i.unidad}</td>
                             <td style="border: 1px solid #ddd; padding: 8px; text-align: center; font-weight: bold;">${i.cant}</td>
@@ -217,21 +234,14 @@ async function generarPDFGuia_Template(data) {
     const opt = {
         margin: 0,
         filename: `${data.nroGR}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 3, useCORS: true, logging: false },
+        html2canvas: { scale: 3, useCORS: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     return html2pdf().set(opt).from(element).save();
 }
 
-// Inicializar la lógica
-iniciarGuia();
-
-import { auth } from './config.js';
-import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-// Lógica para el botón salir
+// --- LÓGICA CERRAR SESIÓN ---
 document.getElementById('btnCerrarSesion')?.addEventListener('click', async (e) => {
     e.preventDefault();
     try {

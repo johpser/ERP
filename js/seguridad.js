@@ -1,97 +1,127 @@
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { auth, db } from './config.js';
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-const auth = getAuth();
-const db = getFirestore();
-
+/**
+ * CONTROL DE SEGURIDAD Y ACCESO POR ROLES
+ * Sistema Qata - 2026
+ */
 onAuthStateChanged(auth, async (user) => {
+    // Obtenemos el nombre del archivo actual (ej: guia.html)
+    const pathParts = window.location.pathname.split("/");
+    const paginaActual = pathParts.pop() || "index.html";
 
-    const paginaActual = window.location.pathname.split("/").pop();
-
+    // 1. Verificación de sesión activa
     if (!user) {
-        if (paginaActual !== "login.html") {
+        if (paginaActual !== "login.html" && paginaActual !== "index.html") {
             window.location.href = "../page/login.html";
         }
         return;
     }
 
-    const userRef = doc(db, "usuarios", user.uid);
-    const userSnap = await getDoc(userRef);
+    try {
+        // 2. Obtención del rol desde Firestore
+        const userRef = doc(db, "usuarios", user.uid);
+        const userSnap = await getDoc(userRef);
 
-    if (!userSnap.exists()) return;
+        if (!userSnap.exists()) {
+            console.error("Usuario no registrado en la base de datos.");
+            return;
+        }
 
-    const rol = userSnap.data().rol;
+        const rol = userSnap.data().rol.toLowerCase();
 
-    const paginasPermitidas = {
-        admin: [
-            "guia.html",
-            "historial_reque.html",
-            "historial.html",
-            "historial2.html",
-            "login.html",
-            "requerimiento.html",
-            "index.html"
-        ],
+        // 3. Definición de permisos por página
+        const paginasPermitidas = {
+            admin: [
+                "guia.html",
+                "historial_reque.html",
+                "historial.html",
+                "historial2.html",
+                "login.html",
+                "requerimiento.html",
+                "orden.html",
+                "index.html",
+                "menu.html"
+            ],
+            editor: [
+                "requerimiento.html",
+                "historial_reque.html",
+                "login.html",
+                "menu2.html"
+            ]
+        };
 
-        editor: [
-            "requerimiento.html",
-            "historial_reque.html",
-            "login.html"
-        ]
-    };
+        const permitidas = paginasPermitidas[rol] || [];
 
-    const permitidas = paginasPermitidas[rol] || [];
-
-    // 🚫 BLOQUEO CON MODAL
-    if (!permitidas.includes(paginaActual)) {
-        mostrarModalAcceso(() => {
-            window.location.href = "../page/requerimiento.html";
-        });
-        return;
+        // 4. Bloqueo si la página no está en la lista de permitidas
+        if (!permitidas.includes(paginaActual)) {
+            mostrarModalAcceso(() => {
+                // Redirección por defecto según el rol si intenta acceder a ruta prohibida
+                const destino = (rol === 'admin') ? "menu.html" : "requerimiento.html";
+                window.location.href = `../page/${destino}`;
+            });
+        }
+    } catch (error) {
+        console.error("Error en el control de seguridad:", error);
     }
 });
 
-
-// 🔥 MODAL DE ACCESO DENEGADO
+/**
+ * 🔥 MODAL DE ACCESO DENEGADO
+ * Crea un aviso visual antes de redirigir al usuario
+ */
 function mostrarModalAcceso(callback) {
+    // Evitar duplicados si ya existe un modal
+    if (document.getElementById("modal-denegado")) return;
+
     const modal = document.createElement("div");
-    modal.style.position = "fixed";
-    modal.style.top = "0";
-    modal.style.left = "0";
-    modal.style.width = "100%";
-    modal.style.height = "100%";
-    modal.style.background = "rgba(0,0,0,0.6)";
-    modal.style.display = "flex";
-    modal.style.alignItems = "center";
-    modal.style.justifyContent = "center";
-    modal.style.zIndex = "9999";
+    modal.id = "modal-denegado";
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        font-family: 'Segoe UI', sans-serif;
+    `;
 
     modal.innerHTML = `
         <div style="
             background: white;
-            padding: 25px;
-            border-radius: 10px;
+            padding: 30px;
+            border-radius: 12px;
             text-align: center;
-            width: 300px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            width: 320px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         ">
-            <h3 style="color:red;">Acceso denegado</h3>
-            <p>No tiene acceso a esta página.</p>
-            <button id="btnCerrar" style="
-                margin-top: 15px;
-                padding: 8px 15px;
-                background: #d33;
+            <div style="font-size: 50px; color: #d33; margin-bottom: 10px;">
+                <i class="bi bi-exclamation-octagon"></i>
+            </div>
+            <h3 style="color:#333; margin-bottom: 10px;">Acceso Restringido</h3>
+            <p style="color:#666; font-size: 14px;">Tu perfil no tiene permisos para acceder a este módulo.</p>
+            <button id="btnCerrarModal" style="
+                margin-top: 20px;
+                padding: 10px 25px;
+                background: #0d6efd;
                 color: white;
                 border: none;
-                border-radius: 5px;
+                border-radius: 6px;
+                font-weight: bold;
                 cursor: pointer;
-            ">Aceptar</button>
+                transition: background 0.3s;
+            ">Volver al Inicio</button>
         </div>
     `;
 
     document.body.appendChild(modal);
 
-    document.getElementById("btnCerrar").onclick = () => {
+    document.getElementById("btnCerrarModal").onclick = () => {
         modal.remove();
         if (callback) callback();
     };
