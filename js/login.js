@@ -1,5 +1,5 @@
 // Agregamos 'db' a la importación
-import { auth, db } from './config.js'; 
+import { auth, db } from '../js/config.js'; 
 import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 // Importamos las funciones necesarias de Firestore
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
