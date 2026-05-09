@@ -60,7 +60,7 @@ function renderizarTabla(snapshot) {
             <td class="fw-bold text-primary small">${formaPago}</td>
             <td>
                 <div class="d-flex align-items-center gap-1 justify-content-center">
-                    <input type="text" class="form-control form-control-sm text-center" 
+                    <input type="text" class="form-control form-control-sm text-center input-editable" 
                         value="${facturaValue}" 
                         data-id="${id}" data-campo="factura"
                         placeholder="Factura" ${facturaValue !== '' ? 'disabled' : ''} style="width: 100px;">
@@ -76,7 +76,7 @@ function renderizarTabla(snapshot) {
             <td class="text-start">${d.proveedor?.razonSocial || '---'}</td>
             <td>${(d.comprador?.proyecto || '---').toUpperCase()}</td>
             <td>
-                <input type="text" class="form-control form-control-sm text-center" 
+                <input type="text" class="form-control form-control-sm text-center input-editable" 
                     value="${solpedCodeValue}" 
                     data-id="${id}" data-campo="codigoSolped"
                     placeholder="Código" ${solpedCodeValue !== '' ? 'disabled' : ''}>
@@ -284,6 +284,27 @@ tablaHistorial.addEventListener('click', async (e) => {
             await updateDoc(doc(db, "ordenesCompra", id), {
                 estadoSolped: "ANULADA", total: "0.00", subtotal: "0.00", igv: "0.00"
             });
+        }
+    }
+});
+
+// --- NUEVA LÓGICA: GUARDAR DATOS DE INPUTS (FACTURA Y CÓDIGO SOLPED) ---
+tablaHistorial.addEventListener('keypress', async (e) => {
+    if (e.target.classList.contains('input-editable') && e.key === 'Enter') {
+        const id = e.target.dataset.id;
+        const campo = e.target.dataset.campo;
+        const valor = e.target.value.trim();
+
+        if (valor === "") return;
+
+        try {
+            const docRef = doc(db, "ordenesCompra", id);
+            await updateDoc(docRef, { [campo]: valor });
+            e.target.disabled = true;
+            alert(`✅ ${campo.toUpperCase()} guardado correctamente.`);
+        } catch (error) {
+            console.error("Error al guardar:", error);
+            alert("❌ Error al guardar el dato.");
         }
     }
 });
