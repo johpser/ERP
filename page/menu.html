@@ -66,6 +66,14 @@
                 </a>
             </div>
 
+            <!-- Catálogo de Productos (Nueva Opción) -->
+            <div class="col-6 col-md-4">
+                <a href="productos.html" class="module-card">
+                    <div class="icon-box"><i class="bi bi-box-seam"></i></div>
+                    <h6 class="module-title">Catálogo de Productos</h6>
+                </a>
+            </div>
+
             <!-- Orden de Compra -->
             <div class="col-6 col-md-4">
                 <a href="orden.html" class="module-card">
@@ -101,8 +109,12 @@
         import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         
         document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
-            await signOut(auth);
-            window.location.href = '../index.html';
+            try {
+                await signOut(auth);
+                window.location.href = '../index.html';
+            } catch (error) {
+                console.error("Error al cerrar sesión:", error);
+            }
         });
     </script>
 </body>

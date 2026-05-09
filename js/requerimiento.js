@@ -196,4 +196,38 @@ if (btnAgregar) {
     };
 }
 
+// --- 7. RECEPCIÓN DE MÚLTIPLES PRODUCTOS DESDE CATÁLOGO ---
+window.addEventListener('DOMContentLoaded', async () => {
+    // Primero cargamos los productos para asegurar autocompletado
+    await cargarProductos();
+
+    const productosJson = sessionStorage.getItem('productosParaRQ');
+    
+    if (productosJson) {
+        const productosArr = JSON.parse(productosJson); // Recibimos el array de productos
+        
+        productosArr.forEach((prodData) => {
+            const filas = document.querySelectorAll('#cuerpoTablaReq tr');
+            let filaDestino = filas[filas.length - 1];
+
+            // Si la última fila ya tiene contenido (descripción llena), agregamos una nueva fila
+            if (filaDestino.querySelector('.inp-desc').value !== "") {
+                if (btnAgregar) btnAgregar.click();
+                const nuevasFilas = document.querySelectorAll('#cuerpoTablaReq tr');
+                filaDestino = nuevasFilas[nuevasFilas.length - 1];
+            }
+
+            // Inyectamos los datos del producto actual en la fila destino
+            filaDestino.querySelector('.inp-codigo').value = prodData.codigo || "";
+            filaDestino.querySelector('.inp-desc').value = prodData.descripcion || "";
+            filaDestino.querySelector('.inp-und').value = prodData.unidad || "UND";
+            filaDestino.querySelector('.inp-cant').value = "1"; // Cantidad por defecto
+        });
+
+        // Limpiamos la memoria para evitar que se carguen de nuevo al refrescar
+        sessionStorage.removeItem('productosParaRQ');
+        console.log(`✅ Se cargaron ${productosArr.length} productos desde el catálogo.`);
+    }
+});
+
 cargarProductos();
