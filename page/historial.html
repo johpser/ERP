@@ -76,11 +76,19 @@
             <!-- Filtros -->
             <div class="filter-section shadow-sm">
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label-sm">Búsqueda General</label>
                         <input type="text" id="busqueda" class="form-control form-control-sm" placeholder="RUC, Proveedor...">
                     </div>
                     <div class="col-md-2">
+                        <label class="form-label-sm">Venc. Desde</label>
+                        <input type="date" id="fechaDesde" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label-sm">Venc. Hasta</label>
+                        <input type="date" id="fechaHasta" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-1">
                         <label class="form-label-sm">Proyecto</label>
                         <select id="filtroProyecto" class="form-select form-select-sm">
                             <option value="">TODOS</option>
@@ -95,8 +103,8 @@
                             <option value="ADMIN">ADMIN</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label-sm">Estado Solped</label>
+                    <div class="col-md-1">
+                        <label class="form-label-sm">Solped</label>
                         <select id="filtroSolped" class="form-select form-select-sm">
                             <option value="">TODOS</option>
                             <option value="PENDIENTE">PENDIENTE</option>
@@ -112,7 +120,7 @@
                             <option value="PAGO REALIZADO">PAGO REALIZADO</option>
                         </select>
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
+                    <div class="col-md-1 d-flex align-items-end">
                         <button id="btnLimpiarFiltros" class="btn btn-outline-secondary btn-sm w-100">LIMPIAR</button>
                     </div>
                 </div>

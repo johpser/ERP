@@ -38,6 +38,10 @@ function iniciarEscuchaHistorial() {
 function renderizarTabla(snapshot) {
     if (!tablaHistorial) return;
     tablaHistorial.innerHTML = "";
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const id = docSnap.id;
@@ -54,6 +58,18 @@ function renderizarTabla(snapshot) {
         const facturaValue = d.factura || '';
         const solpedCodeValue = d.codigoSolped || '';
         const simb = d.moneda || 'S/';
+
+        // --- LÓGICA DE ALERTA DE VENCIMIENTO (3 DÍAS ANTES) ---
+        let alertaVencimiento = "";
+        if (d.fechaVencimiento && estadoPago !== 'PAGO REALIZADO') {
+            const fVenc = new Date(d.fechaVencimiento + "T00:00:00");
+            const diffTime = fVenc - hoy;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays <= 3) {
+                alertaVencimiento = "color: red; font-weight: bold;";
+            }
+        }
 
         fila.innerHTML = `
             <td class="fw-bold">${d.nroOC || 'S/N'}</td>
@@ -72,7 +88,7 @@ function renderizarTabla(snapshot) {
             </td>
             <td>${d.fechaEmision || '---'}</td>
             <td class="small">${d.nroCotizacion || '---'}</td>
-            <td>${d.fechaVencimiento || '---'}</td>
+            <td style="${alertaVencimiento}">${d.fechaVencimiento || '---'}</td>
             <td class="text-start">${d.proveedor?.razonSocial || '---'}</td>
             <td>${(d.comprador?.proyecto || '---').toUpperCase()}</td>
             <td>
@@ -140,7 +156,7 @@ tablaHistorial.addEventListener('click', async (e) => {
     }
 });
 
-// --- 5. GENERACIÓN DE PDF (DISEÑO ORIGINAL CON MEJORAS DE TEXTO) ---
+// --- 5. GENERACIÓN DE PDF ---
 async function generarPDF_Historial(data, modo) {
     const simb = data.moneda || "S/";
     const element = document.createElement('div');
@@ -237,9 +253,7 @@ async function generarPDF_Historial(data, modo) {
                 </div>
             </div>
           <div style="text-align: center; width: 100%; page-break-inside: avoid;">
-
                 <img src="../imagenes/sello.png" style="width: 70px; height: auto;">
-
             </div>
         </div>
     `;
@@ -288,7 +302,6 @@ tablaHistorial.addEventListener('click', async (e) => {
     }
 });
 
-// --- NUEVA LÓGICA: GUARDAR DATOS DE INPUTS (FACTURA Y CÓDIGO SOLPED) ---
 tablaHistorial.addEventListener('keypress', async (e) => {
     if (e.target.classList.contains('input-editable') && e.key === 'Enter') {
         const id = e.target.dataset.id;
@@ -314,23 +327,56 @@ function aplicarFiltros() {
     const proyecto = document.getElementById('filtroProyecto').value.toUpperCase();
     const solped = document.getElementById('filtroSolped').value;
     const pago = document.getElementById('filtroPago').value;
+    
+    // Filtros de fecha
+    const fechaDesde = document.getElementById('fechaDesde').value;
+    const fechaHasta = document.getElementById('fechaHasta').value;
+
     const filas = tablaHistorial.querySelectorAll('tr');
 
     filas.forEach(fila => {
         const textoFila = fila.innerText.toLowerCase();
         const valorProyecto = fila.cells[7].innerText.toUpperCase();
+        const valorVencimiento = fila.cells[5].innerText; // Columna Vencimiento
+
         const coincideBusqueda = textoFila.includes(term);
         const coincideProyecto = proyecto === "" || valorProyecto === proyecto;
         const coincideSolped = solped === "" || fila.querySelector('[data-campo="estadoSolped"]').innerText.trim() === solped;
         const coincidePago = pago === "" || fila.querySelector('[data-campo="estadoPago"]').innerText.trim() === pago;
-        fila.style.display = (coincideBusqueda && coincideProyecto && coincideSolped && coincidePago) ? '' : 'none';
+        
+        // Lógica de rango de fechas
+        let coincideFecha = true;
+        if (fechaDesde || fechaHasta) {
+            if (valorVencimiento === '---') {
+                coincideFecha = false;
+            } else {
+                const dateVenc = new Date(valorVencimiento + "T00:00:00");
+                if (fechaDesde && dateVenc < new Date(fechaDesde + "T00:00:00")) coincideFecha = false;
+                if (fechaHasta && dateVenc > new Date(fechaHasta + "T00:00:00")) coincideFecha = false;
+            }
+        }
+
+        fila.style.display = (coincideBusqueda && coincideProyecto && coincideSolped && coincidePago && coincideFecha) ? '' : 'none';
     });
 }
+
+// --- BOTÓN LIMPIAR ---
+document.getElementById('btnLimpiarFiltros').addEventListener('click', () => {
+    document.getElementById('busqueda').value = "";
+    document.getElementById('filtroProyecto').value = "";
+    document.getElementById('filtroSolped').value = "";
+    document.getElementById('filtroPago').value = "";
+    document.getElementById('fechaDesde').value = "";
+    document.getElementById('fechaHasta').value = "";
+    aplicarFiltros();
+});
 
 document.getElementById('busqueda').addEventListener('input', aplicarFiltros);
 document.getElementById('filtroProyecto').addEventListener('change', aplicarFiltros);
 document.getElementById('filtroSolped').addEventListener('change', aplicarFiltros);
 document.getElementById('filtroPago').addEventListener('change', aplicarFiltros);
+document.getElementById('fechaDesde').addEventListener('change', aplicarFiltros);
+document.getElementById('fechaHasta').addEventListener('change', aplicarFiltros);
 
 document.getElementById('btnExportarExcel').onclick = function() {
     const filas = tablaHistorial.querySelectorAll('tr');
