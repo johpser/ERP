@@ -65,9 +65,24 @@
             </div>
 
             <div class="search-section shadow-sm">
-                <div class="input-group">
-                    <span class="input-group-text bg-white"><i class="bi bi-search text-primary"></i></span>
-                    <input type="text" id="inputBuscador" class="form-control form-control-lg" placeholder="Buscar por descripción, código o tipo..." autocomplete="off">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-search text-primary"></i></span>
+                            <input type="text" id="inputBuscador" class="form-control form-control-lg" placeholder="Buscar por descripción, código o tipo..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <select id="filtroTipo" class="form-select form-select-lg fw-bold text-secondary">
+                            <option value="">🔍 TODOS LOS TIPOS</option>
+                            <option value="ELECTRICO">ELECTRICO</option>
+                            <option value="FERRETERIA">FERRETERIA</option>
+                            <option value="EPPS">EPPS</option>
+                            <option value="HERRAMIENTAS">HERRAMIENTAS</option>
+                            <option value="OFICINA">OFICINA</option>
+                            <option value="GENERAL">GENERAL</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -90,7 +105,6 @@
         </div>
     </main>
 
-    <!-- Modal Nuevo Producto -->
     <div class="modal fade" id="modalNuevoProducto" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content shadow border-0" style="border-radius: 15px;">

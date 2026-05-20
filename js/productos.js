@@ -7,6 +7,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/fi
 const tablaProductos = document.getElementById('tablaProductos');
 const formNuevoProducto = document.getElementById('formNuevoProducto');
 const inputBuscador = document.getElementById('inputBuscador');
+const filtroTipo = document.getElementById('filtroTipo'); // Selector de filtro por tipo en tu HTML
 
 let listaMaestraProductos = [];
 let seleccionadosParaRQ = [];
@@ -24,7 +25,8 @@ function iniciarCargaDatos() {
             id: doc.id,
             ...doc.data()
         }));
-        actualizarTabla(listaMaestraProductos);
+        // Al cargar o actualizar datos, aplicamos los filtros activos inmediatamente
+        ejecutarFiltroCombinado();
     });
 }
 
@@ -105,7 +107,8 @@ tablaProductos.addEventListener('click', async (e) => {
             seleccionadosParaRQ.splice(indice, 1);
         }
         actualizarBotónListo();
-        actualizarTabla(listaMaestraProductos);
+        // Mantiene el filtro actual visible tras pulsar el botón de usar producto
+        ejecutarFiltroCombinado();
     }
 
     if (btn.classList.contains('btn-eliminar')) {
@@ -186,13 +189,28 @@ formNuevoProducto.addEventListener('submit', async (e) => {
     }
 });
 
-// 7. BUSCADOR EN VIVO
-inputBuscador.addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase().trim();
-    const filtrados = listaMaestraProductos.filter(p => 
-        (p.descripcion && p.descripcion.toLowerCase().includes(term)) || 
-        (p.codigo && p.codigo.toLowerCase().includes(term)) ||
-        (p.tipo && p.tipo.toLowerCase().includes(term))
-    );
+// 7. FUNCIÓN DE FILTRADO COMBINADO (BÚSQUEDA + TIPO)
+function ejecutarFiltroCombinado() {
+    const term = inputBuscador ? inputBuscador.value.toLowerCase().trim() : "";
+    const tipoSeleccionado = filtroTipo ? filtroTipo.value.toLowerCase().trim() : "";
+
+    const filtrados = listaMaestraProductos.filter(p => {
+        // Validación de coincidencia de texto (Buscador)
+        const coincideTexto = term === "" || 
+            (p.descripcion && p.descripcion.toLowerCase().includes(term)) || 
+            (p.codigo && p.codigo.toLowerCase().includes(term)) ||
+            (p.tipo && p.tipo.toLowerCase().includes(term));
+
+        // Validación de coincidencia de categoría (Filtro Select)
+        const coincideTipo = tipoSeleccionado === "" || 
+            (p.tipo && p.tipo.toLowerCase() === tipoSeleccionado);
+
+        return coincideTexto && coincideTipo;
+    });
+
     actualizarTabla(filtrados);
-});
+}
+
+// Escuchas de eventos para actualizar la tabla dinámicamente al interactuar con los filtros
+inputBuscador?.addEventListener('input', ejecutarFiltroCombinado);
+filtroTipo?.addEventListener('change', ejecutarFiltroCombinado);
