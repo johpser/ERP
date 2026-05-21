@@ -1,6 +1,6 @@
 import { db, auth } from './config.js'; 
 import { 
-    doc, getDoc, setDoc, addDoc, collection, runTransaction, serverTimestamp 
+    doc, getDoc, setDoc, addDoc, collection, runTransaction, serverTimestamp, getDocs 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"; 
 
@@ -46,6 +46,7 @@ const proyectosMaster = {
 };
 
 let productosTabla = [];
+let listaMaestraProductos = []; // Almacena el catálogo de productos de Firestore en memoria
 
 // --- 3. FUNCIONES DE CÁLCULO ---
 const calcularVencimiento = () => {
@@ -164,8 +165,130 @@ async function generarPDF_OC(data) {
     html2pdf().set(opt).from(element).save();
 }
 
-// --- 5. INICIALIZACIÓN DE LA APP ---
-const iniciarApp = () => {
+// --- 5. LÓGICA DE BÚSQUEDA INTERACTIVA DE PRODUCTOS (CATÁLOGO EN MEMORIA) ---
+async function cargarCatalogoProductos() {
+    try {
+        const querySnapshot = await getDocs(collection(db, "productos"));
+        listaMaestraProductos = [];
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            listaMaestraProductos.push({
+                codigo: data.codigo || "",
+                descripcion: data.descripcion || "",
+                unidad: data.unidad || "UND"
+            });
+        });
+        console.log(`✅ Catálogo cargado: ${listaMaestraProductos.length} productos listos para la búsqueda.`);
+    } catch (error) {
+        console.error("Error al precargar el catálogo de productos:", error);
+    }
+}
+
+function configurarBuscadoresInteractivos() {
+    const codigoProd = document.getElementById('codigoProd');
+    const productoDesc = document.getElementById('producto');
+    const unidadMedida = document.getElementById('unidadMedida');
+    
+    const sugerenciasCodigo = document.getElementById('sugerenciasCodigo');
+    const sugerenciasDesc = document.getElementById('sugerenciasDesc');
+
+    if (!codigoProd || !productoDesc) return;
+
+    // A. Filtrar coincidencias mientras se escribe en el Código de Producto
+    codigoProd.addEventListener('input', () => {
+        const term = codigoProd.value.toLowerCase().trim();
+        if (term === "") {
+            sugerenciasCodigo.style.display = 'none';
+            return;
+        }
+
+        const filtrados = listaMaestraProductos.filter(p => p.codigo.toLowerCase().includes(term));
+        if (filtrados.length === 0) {
+            sugerenciasCodigo.style.display = 'none';
+            return;
+        }
+
+        renderizarPanelFlotante(sugerenciasCodigo, filtrados, codigoProd, productoDesc, unidadMedida);
+    });
+
+    // B. Filtrar coincidencias en vivo mientras se escribe en la Descripción
+    productoDesc.addEventListener('input', () => {
+        const term = productoDesc.value.toLowerCase().trim();
+        if (term === "") {
+            sugerenciasDesc.style.display = 'none';
+            return;
+        }
+
+        const filtrados = listaMaestraProductos.filter(p => 
+            p.descripcion.toLowerCase().includes(term) || 
+            p.codigo.toLowerCase().includes(term)
+        );
+
+        if (filtrados.length === 0) {
+            sugerenciasDesc.style.display = 'none';
+            return;
+        }
+
+        renderizarPanelFlotante(sugerenciasDesc, filtrados, codigoProd, productoDesc, unidadMedida);
+    });
+
+    // Ocultar las tablas emergentes al hacer clic fuera de las cajas de texto de búsqueda
+    document.addEventListener('click', (e) => {
+        if (e.target !== codigoProd && e.target !== productoDesc) {
+            if (sugerenciasCodigo) sugerenciasCodigo.style.display = 'none';
+            if (sugerenciasDesc) sugerenciasDesc.style.display = 'none';
+        }
+    });
+}
+
+function renderizarPanelFlotante(contenedor, lista, inpCod, inpDesc, selUnd) {
+    let html = `<table class="table table-sm table-hover border bg-white mb-0 shadow-sm" style="font-size:0.8rem; text-align: left;"><tbody>`;
+    
+    lista.slice(0, 8).forEach(p => {
+        html += `
+            <tr data-codigo="${p.codigo}" data-descripcion="${p.descripcion}" data-unidad="${p.unidad}">
+                <td class="fw-bold text-primary" style="width: 25%;">${p.codigo}</td>
+                <td style="width: 55%;">${p.descripcion}</td>
+                <td class="text-muted text-center" style="width: 20%;">${p.unidad}</td>
+            </tr>
+        `;
+    });
+    html += `</tbody></table>`;
+    
+    contenedor.innerHTML = html;
+    contenedor.style.display = 'block';
+
+    contenedor.querySelectorAll('tbody tr').forEach(row => {
+        row.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            inpCod.value = row.getAttribute('data-codigo').toUpperCase();
+            inpDesc.value = row.getAttribute('data-descripcion').toUpperCase();
+            
+            if (selUnd) {
+                selUnd.value = normalizarUnidad(row.getAttribute('data-unidad'));
+            }
+            
+            contenedor.style.display = 'none';
+        });
+    });
+}
+
+function normalizarUnidad(und) {
+    const u = String(und).toUpperCase().trim();
+    if (u === "MTR" || u === "METRO") return "MTR";
+    if (u === "GLN" || u === "GALON" || u === "GALÓN") return "GLN";
+    if (u === "CAJA") return "CAJA";
+    if (u === "PAQ" || u === "PQT" || u === "PAQUETE") return "PAQ";
+    if (u === "MLL" || u === "MILLAR") return "MLL";
+    if (u === "KG" || u === "KILOGRAMO") return "KG";
+    return "UND";
+}
+
+// --- 6. INICIALIZACIÓN DE LA APP ---
+const iniciarApp = async () => {
+    await cargarCatalogoProductos();
+    configurarBuscadoresInteractivos();
+
     // Eventos Comprador
     document.getElementById('nombreComp')?.addEventListener('change', (e) => {
         const data = compradoresMaster[e.target.value];
@@ -204,12 +327,15 @@ const iniciarApp = () => {
         }
     });
 
-    // Búsqueda Producto por Código
+    // Búsqueda Producto por Código Exacto
     document.getElementById('codigoProd')?.addEventListener('blur', async (e) => {
         const cod = e.target.value.toUpperCase().trim();
         if (cod) {
             const snap = await getDoc(doc(db, "productos", cod));
-            if (snap.exists()) document.getElementById('producto').value = snap.data().descripcion.toUpperCase();
+            if (snap.exists()) {
+                document.getElementById('producto').value = snap.data().descripcion.toUpperCase();
+                document.getElementById('unidadMedida').value = normalizarUnidad(snap.data().unidad);
+            }
         }
     });
 
@@ -239,12 +365,14 @@ const iniciarApp = () => {
     document.getElementById('btnFinalizar')?.addEventListener('click', guardarOrden);
     
     if (document.getElementById('fechaoc')) {
-        document.getElementById('fechaoc').valueAsDate = new Date();
+        if (!document.getElementById('fechaoc').value) {
+            document.getElementById('fechaoc').valueAsDate = new Date();
+        }
         calcularVencimiento();
     }
 };
 
-// --- 6. GUARDADO EN FIREBASE ---
+// --- 7. GUARDADO EN FIREBASE ---
 async function guardarOrden() {
     if (productosTabla.length === 0) return alert("La tabla de productos está vacía.");
     const rucProv = document.getElementById('rucProv').value.trim();
@@ -298,18 +426,11 @@ async function guardarOrden() {
         await addDoc(collection(db, "ordenesCompra"), data);
         await addDoc(collection(db, "guiasRemision"), data);
 
-        // Upsert de Proveedor y Productos para histórico
+        // Upsert de Proveedor para histórico
         await setDoc(doc(db, "proveedores", rucProv), data.proveedor, { merge: true });
 
-        for (const item of productosTabla) {
-            if (item.codigo && item.codigo !== "S/C") {
-                await setDoc(doc(db, "productos", item.codigo), {
-                    codigo: item.codigo,
-                    descripcion: item.desc.toUpperCase(),
-                    unidad: item.unidad.toUpperCase()
-                }, { merge: true });
-            }
-        }
+        // ❌ ELIMINADO EL BUCLE DE GUARDADO DE NUEVOS PRODUCTOS AQUÍ ❌
+        // Ningún código escrito manualmente se registrará en la colección "productos".
 
         await generarPDF_OC(data);
         alert(`✅ Registrado con éxito: ${nroOC}`);
