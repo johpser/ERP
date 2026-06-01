@@ -29,7 +29,7 @@ const compradoresMaster = {
     "Johpser Alejandro": { tlf: "981 433 764", correo: "Jalejandro@grupoqata.pe" },
     "Paul Aster": { tlf: "957 254 498", correo: "Paster@grupoqata.pe" },
     "Dave Cardenas": { tlf: "942 628 722", correo: "Dcardenas@grupoqata.pe" },
-    "Manuel Vega": { tlf: "994 624 551", correo: "Mvega@grupoqata.pe" }
+    "Joseph Sandoval": { tlf: "922 191 161", correo: "Jsanchez@grupoqata.pe" }
 };
 
 const proyectosMaster = {
