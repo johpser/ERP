@@ -14,7 +14,8 @@ const proyectosMaster = {
     "POSVENTA": "Av. Caminon Real 1236, San Isidro",
     "QUALITY": "Centro Comercial Puruchuco",
     "CORIL": "Av. EL Derby 2550, Santiago de Surco",
-    "ADMIN": "Av. Caminon Real 1236, San Isidro"
+    "ADMIN": "Av. Caminon Real 1236, San Isidro",
+    "CAJAMARCA": "MEGAPLAZA CAJAMARCA, Av. Bolognesi 1350, Cajamarca"
 };
 
 let itemsGuia = [];
